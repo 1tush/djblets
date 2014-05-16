@@ -27,6 +27,7 @@ from __future__ import unicode_literals
 
 import uuid
 
+from django.template import RequestContext
 from django.template.loader import render_to_string
 from django.utils import six
 
@@ -208,15 +209,21 @@ class TemplateHook(AppliesToURLMixin, ExtensionHook):
         By default, this renders the provided template name to a string
         and returns it.
         """
-        context.push()
-        context['extension'] = self.extension
-        context.update(self.get_extra_context(request, context))
-        context.update(self.extra_context)
+        context_data = {
+            'extension': self.extension,
+        }
+        context_data.update(self.get_extra_context(request, context))
+        context_data.update(self.extra_context)
 
-        try:
-            return render_to_string(self.template_name, context)
-        finally:
-            context.pop()
+        # Note that context.update implies a push().
+        context.update(context_data)
+
+        s = render_to_string(self.template_name,
+                             RequestContext(request, context))
+
+        context.pop()
+
+        return s
 
     def get_extra_context(self, request, context):
         """Returns extra context for the hook.
